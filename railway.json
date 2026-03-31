@@ -1,0 +1,10 @@
+{
+  "build": {
+    "builder": "DOCKERFILE"
+  },
+  "deploy": {
+    "startCommand": "sh entrypoint.sh",
+    "healthcheckPath": "/api/users/login/",
+    "restartPolicyType": "ON_FAILURE"
+  }
+}

@@ -19,4 +19,5 @@ done
 
 echo "MySQL is ready!"
 python manage.py migrate
-python manage.py runserver 0.0.0.0:8000
+python manage.py collectstatic --noinput
+gunicorn expense_tracker.wsgi:application --bind 0.0.0.0:8000

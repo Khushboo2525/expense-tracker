@@ -114,10 +114,80 @@
             <div class="row g-3 mt-1">
                 <div class="col-12">
                     <div class="card p-3">
-                        <h6 class="fw-semibold mb-3">Budget Status</h6>
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <h6 class="fw-semibold mb-0">Budget Status</h6>
+                            <button class="btn btn-primary btn-sm" onclick="openBudgetModal()">
+                                <i class="bi bi-plus"></i> Set Budget
+                            </button>
+                        </div>
                         <div id="budget-status"></div>
                     </div>
                 </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Budget Modal -->
+<div class="modal fade" id="budgetModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title fw-semibold">Set Budget</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div id="budget-modal-error" class="alert alert-danger d-none"></div>
+                <div class="mb-3">
+                    <label class="form-label small text-muted">Category</label>
+                    <select class="form-select" id="budget-category">
+                        <option value="food">Food</option>
+                        <option value="transport">Transport</option>
+                        <option value="shopping">Shopping</option>
+                        <option value="entertainment">Entertainment</option>
+                        <option value="health">Health</option>
+                        <option value="education">Education</option>
+                        <option value="bills">Bills</option>
+                        <option value="other">Other</option>
+                    </select>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label small text-muted">Amount (₹)</label>
+                    <input type="number" id="budget-amount" class="form-control" placeholder="0.00">
+                </div>
+                <div class="row g-2">
+                    <div class="col-md-6">
+                        <label class="form-label small text-muted">Month</label>
+                        <select class="form-select" id="budget-month">
+                            <option value="1">January</option>
+                            <option value="2">February</option>
+                            <option value="3">March</option>
+                            <option value="4">April</option>
+                            <option value="5">May</option>
+                            <option value="6">June</option>
+                            <option value="7">July</option>
+                            <option value="8">August</option>
+                            <option value="9">September</option>
+                            <option value="10">October</option>
+                            <option value="11">November</option>
+                            <option value="12">December</option>
+                        </select>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label small text-muted">Year</label>
+                        <select class="form-select" id="budget-year">
+                            <option value="2024">2024</option>
+                            <option value="2025">2025</option>
+                            <option value="2026">2026</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary btn-sm" onclick="saveBudget()">
+                    <span id="budget-btn-text">Save Budget</span>
+                </button>
             </div>
         </div>
     </div>
@@ -126,7 +196,6 @@
 
 {% block extra_js %}
 <script>
-    // Redirect if not logged in
     if (!getToken()) window.location.href = '/login/';
 
     const now = new Date();
@@ -136,14 +205,13 @@
     const user = JSON.parse(localStorage.getItem('user') || '{}');
     document.getElementById('greeting').textContent = `Welcome back, ${user.username || 'User'}!`;
 
+    const budgetModal = new bootstrap.Modal(document.getElementById('budgetModal'));
+
     async function apiFetch(url) {
         const response = await fetch(url, {
             headers: { 'Authorization': `Bearer ${getToken()}` }
         });
-        if (response.status === 401) {
-            logout();
-            return null;
-        }
+        if (response.status === 401) { logout(); return null; }
         return response.json();
     }
 
@@ -151,13 +219,11 @@
         const month = document.getElementById('month-select').value;
         const year = document.getElementById('year-select').value;
 
-        // Load summary
         const summary = await apiFetch(`${API_BASE}/expenses/summary/?month=${month}&year=${year}`);
         if (!summary) return;
 
         document.getElementById('total-spent').textContent = `₹${summary.total.toLocaleString('en-IN')}`;
 
-        // Biggest category
         const categories = summary.category_summary;
         if (Object.keys(categories).length > 0) {
             const biggest = Object.entries(categories).sort((a, b) => b[1] - a[1])[0];
@@ -165,22 +231,17 @@
             document.getElementById('biggest-amount').textContent = `₹${biggest[1].toLocaleString('en-IN')}`;
         }
 
-        // Category chart
         renderCategoryChart(categories, summary.total);
 
-        // Load expenses for count and daily average
         const expenses = await apiFetch(`${API_BASE}/expenses/?month=${month}&year=${year}&page_size=100`);
         if (expenses) {
             document.getElementById('total-expenses').textContent = expenses.count || 0;
             const daysInMonth = new Date(year, month, 0).getDate();
             const avg = summary.total / daysInMonth;
             document.getElementById('daily-average').textContent = `₹${avg.toFixed(0)}`;
-
-            // Recent expenses (first 5)
             renderRecentExpenses(expenses.results ? expenses.results.slice(0, 5) : []);
         }
 
-        // Load budget status
         const budgets = await apiFetch(`${API_BASE}/budgets/status/?month=${month}&year=${year}`);
         if (budgets) renderBudgetStatus(budgets.budgets);
     }
@@ -243,7 +304,7 @@
 
     function renderBudgetStatus(budgets) {
         if (!budgets || budgets.length === 0) {
-            document.getElementById('budget-status').innerHTML = '<p class="text-muted small">No budgets set for this month. <a href="/expenses/" class="text-success">Set a budget</a></p>';
+            document.getElementById('budget-status').innerHTML = '<p class="text-muted small">No budgets set for this month. Click <strong>Set Budget</strong> to get started!</p>';
             return;
         }
 
@@ -270,6 +331,54 @@
         });
         html += '</div>';
         document.getElementById('budget-status').innerHTML = html;
+    }
+
+    function openBudgetModal() {
+        const month = document.getElementById('month-select').value;
+        const year = document.getElementById('year-select').value;
+        document.getElementById('budget-month').value = month;
+        document.getElementById('budget-year').value = year;
+        document.getElementById('budget-amount').value = '';
+        document.getElementById('budget-modal-error').classList.add('d-none');
+        document.getElementById('budget-btn-text').textContent = 'Save Budget';
+        budgetModal.show();
+    }
+
+    async function saveBudget() {
+        const category = document.getElementById('budget-category').value;
+        const amount = document.getElementById('budget-amount').value;
+        const month = document.getElementById('budget-month').value;
+        const year = document.getElementById('budget-year').value;
+        const errorDiv = document.getElementById('budget-modal-error');
+
+        if (!amount) {
+            errorDiv.textContent = 'Please enter an amount';
+            errorDiv.classList.remove('d-none');
+            return;
+        }
+
+        document.getElementById('budget-btn-text').textContent = 'Saving...';
+
+        const response = await fetch(`${API_BASE}/budgets/`, {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${getToken()}`,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ category, amount, month, year })
+        });
+
+        const data = await response.json();
+
+        if (response.ok) {
+            budgetModal.hide();
+            loadDashboard();
+        } else {
+            const errors = Object.values(data).flat().join(' ');
+            errorDiv.textContent = errors || 'Failed to save budget';
+            errorDiv.classList.remove('d-none');
+            document.getElementById('budget-btn-text').textContent = 'Save Budget';
+        }
     }
 
     loadDashboard();

@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Spendwise{% endblock %}</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css" rel="stylesheet">
+    <style>
+        body { background-color: #f8f9fa; font-family: 'Segoe UI', sans-serif; }
+        .navbar-brand { font-weight: 600; color: #1D9E75 !important; }
+        .navbar { background-color: #ffffff; border-bottom: 1px solid #e9ecef; }
+        .nav-link { color: #555 !important; }
+        .nav-link:hover { color: #1D9E75 !important; }
+        .btn-primary { background-color: #1D9E75; border-color: #1D9E75; }
+        .btn-primary:hover { background-color: #0F6E56; border-color: #0F6E56; }
+        .card { border: 1px solid #e9ecef; border-radius: 12px; }
+        .sidebar { min-height: calc(100vh - 56px); background: #ffffff; border-right: 1px solid #e9ecef; padding: 20px 0; }
+        .sidebar .nav-link { color: #555; padding: 10px 20px; border-radius: 8px; margin: 2px 10px; }
+        .sidebar .nav-link:hover, .sidebar .nav-link.active { background-color: #E1F5EE; color: #1D9E75 !important; }
+        .sidebar .nav-link i { margin-right: 8px; }
+        .main-content { padding: 24px; }
+        .metric-card { background: #ffffff; border-radius: 12px; padding: 20px; border: 1px solid #e9ecef; }
+        .metric-value { font-size: 28px; font-weight: 600; color: #1D9E75; }
+        .metric-label { font-size: 13px; color: #888; margin-bottom: 4px; }
+        .badge-food { background-color: #E1F5EE; color: #0F6E56; }
+        .badge-transport { background-color: #E6F1FB; color: #185FA5; }
+        .badge-shopping { background-color: #FAEEDA; color: #854F0B; }
+        .badge-bills { background-color: #FCEBEB; color: #A32D2D; }
+        .badge-health { background-color: #FBEAF0; color: #993556; }
+        .badge-entertainment { background-color: #EEF0FE; color: #4338CA; }
+        .badge-education { background-color: #F0FDF4; color: #166534; }
+        .badge-other { background-color: #F3F4F6; color: #374151; }
+    </style>
+    {% block extra_css %}{% endblock %}
+</head>
+<body>
+
+<nav class="navbar navbar-expand-lg">
+    <div class="container-fluid">
+        <a class="navbar-brand" href="/">
+            <i class="bi bi-shield-check"></i> Spendwise
+        </a>
+        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+            <span class="navbar-toggler-icon"></span>
+        </button>
+        <div class="collapse navbar-collapse" id="navbarNav">
+            <ul class="navbar-nav ms-auto" id="nav-links">
+                <li class="nav-item" id="nav-login">
+                    <a class="nav-link" href="/login/">Login</a>
+                </li>
+                <li class="nav-item" id="nav-register">
+                    <a class="nav-link" href="/register/">Register</a>
+                </li>
+                <li class="nav-item d-none" id="nav-logout">
+                    <a class="nav-link" href="#" onclick="logout()">
+                        <i class="bi bi-box-arrow-right"></i> Logout
+                    </a>
+                </li>
+            </ul>
+        </div>
+    </div>
+</nav>
+
+{% block content %}{% endblock %}
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+    const API_BASE = '/api';
+
+    function getToken() {
+        return localStorage.getItem('access_token');
+    }
+
+    function logout() {
+        localStorage.removeItem('access_token');
+        localStorage.removeItem('refresh_token');
+        localStorage.removeItem('user');
+        window.location.href = '/login/';
+    }
+
+    function updateNavbar() {
+        const token = getToken();
+        if (token) {
+            document.getElementById('nav-login').classList.add('d-none');
+            document.getElementById('nav-register').classList.add('d-none');
+            document.getElementById('nav-logout').classList.remove('d-none');
+        }
+    }
+
+    updateNavbar();
+</script>
+{% block extra_js %}{% endblock %}
+</body>
+</html>

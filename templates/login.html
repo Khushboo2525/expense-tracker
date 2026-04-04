@@ -1,0 +1,89 @@
+{% extends 'base.html' %}
+
+{% block title %}Login - Spendwise{% endblock %}
+
+{% block content %}
+<div class="container mt-5">
+    <div class="row justify-content-center">
+        <div class="col-md-4">
+            <div class="card shadow-sm p-4">
+                <div class="text-center mb-4">
+                    <i class="bi bi-shield-check text-success" style="font-size: 2.5rem;"></i>
+                    <h4 class="mt-2 fw-semibold">Welcome back</h4>
+                    <p class="text-muted small">Sign in to your account</p>
+                </div>
+
+                <div id="error-msg" class="alert alert-danger d-none"></div>
+
+                <div class="mb-3">
+                    <label class="form-label small text-muted">Email</label>
+                    <input type="email" id="email" class="form-control" placeholder="you@gmail.com">
+                </div>
+                <div class="mb-3">
+                    <label class="form-label small text-muted">Password</label>
+                    <input type="password" id="password" class="form-control" placeholder="••••••••">
+                </div>
+                <button class="btn btn-primary w-100" onclick="login()">
+                    <span id="btn-text">Sign in</span>
+                </button>
+
+                <p class="text-center mt-3 small text-muted">
+                    Don't have an account? <a href="/register/" class="text-success">Register</a>
+                </p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Redirect if already logged in
+    if (getToken()) window.location.href = '/dashboard/';
+
+    async function login() {
+        const email = document.getElementById('email').value;
+        const password = document.getElementById('password').value;
+        const errorMsg = document.getElementById('error-msg');
+        const btnText = document.getElementById('btn-text');
+
+        if (!email || !password) {
+            errorMsg.textContent = 'Please fill in all fields';
+            errorMsg.classList.remove('d-none');
+            return;
+        }
+
+        btnText.textContent = 'Signing in...';
+
+        try {
+            const response = await fetch(`${API_BASE}/users/login/`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email, password })
+            });
+
+            const data = await response.json();
+
+            if (response.ok) {
+                localStorage.setItem('access_token', data.access);
+                localStorage.setItem('refresh_token', data.refresh);
+                localStorage.setItem('user', JSON.stringify(data.user));
+                window.location.href = '/dashboard/';
+            } else {
+                errorMsg.textContent = data.error || 'Invalid credentials';
+                errorMsg.classList.remove('d-none');
+                btnText.textContent = 'Sign in';
+            }
+        } catch (err) {
+            errorMsg.textContent = 'Something went wrong. Please try again.';
+            errorMsg.classList.remove('d-none');
+            btnText.textContent = 'Sign in';
+        }
+    }
+
+    // Allow Enter key to submit
+    document.addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') login();
+    });
+</script>
+{% endblock %}

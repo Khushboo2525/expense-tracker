@@ -1,0 +1,400 @@
+{% extends 'base.html' %}
+
+{% block title %}Expenses - Spendwise{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <!-- Sidebar -->
+        <div class="col-md-2 sidebar">
+            <ul class="nav flex-column">
+                <li class="nav-item">
+                    <a class="nav-link" href="/dashboard/">
+                        <i class="bi bi-grid"></i> Dashboard
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link active" href="/expenses/">
+                        <i class="bi bi-receipt"></i> Expenses
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="/advisor/">
+                        <i class="bi bi-robot"></i> AI Advisor
+                    </a>
+                </li>
+            </ul>
+        </div>
+
+        <!-- Main Content -->
+        <div class="col-md-10 main-content">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h5 class="fw-semibold mb-0">Expenses</h5>
+                <div class="d-flex gap-2">
+                    <button class="btn btn-outline-success btn-sm" onclick="exportCSV()">
+                        <i class="bi bi-download"></i> Export CSV
+                    </button>
+                    <button class="btn btn-primary btn-sm" onclick="openAddModal()">
+                        <i class="bi bi-plus"></i> Add Expense
+                    </button>
+                </div>
+            </div>
+
+            <!-- Filters -->
+            <div class="card p-3 mb-3">
+                <div class="row g-2">
+                    <div class="col-md-3">
+                        <input type="text" id="search" class="form-control form-control-sm" placeholder="Search expenses...">
+                    </div>
+                    <div class="col-md-2">
+                        <select class="form-select form-select-sm" id="filter-category">
+                            <option value="">All Categories</option>
+                            <option value="food">Food</option>
+                            <option value="transport">Transport</option>
+                            <option value="shopping">Shopping</option>
+                            <option value="entertainment">Entertainment</option>
+                            <option value="health">Health</option>
+                            <option value="education">Education</option>
+                            <option value="bills">Bills</option>
+                            <option value="other">Other</option>
+                        </select>
+                    </div>
+                    <div class="col-md-2">
+                        <select class="form-select form-select-sm" id="filter-month">
+                            <option value="">All Months</option>
+                            <option value="1">January</option>
+                            <option value="2">February</option>
+                            <option value="3">March</option>
+                            <option value="4">April</option>
+                            <option value="5">May</option>
+                            <option value="6">June</option>
+                            <option value="7">July</option>
+                            <option value="8">August</option>
+                            <option value="9">September</option>
+                            <option value="10">October</option>
+                            <option value="11">November</option>
+                            <option value="12">December</option>
+                        </select>
+                    </div>
+                    <div class="col-md-2">
+                        <select class="form-select form-select-sm" id="filter-year">
+                            <option value="">All Years</option>
+                            <option value="2024">2024</option>
+                            <option value="2025">2025</option>
+                            <option value="2026">2026</option>
+                        </select>
+                    </div>
+                    <div class="col-md-2">
+                        <select class="form-select form-select-sm" id="filter-ordering">
+                            <option value="-date">Latest First</option>
+                            <option value="date">Oldest First</option>
+                            <option value="-amount">Highest Amount</option>
+                            <option value="amount">Lowest Amount</option>
+                        </select>
+                    </div>
+                    <div class="col-md-1">
+                        <button class="btn btn-primary btn-sm w-100" onclick="loadExpenses()">Filter</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Expenses Table -->
+            <div class="card">
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0">
+                        <thead style="background:#f8f9fa;">
+                            <tr>
+                                <th style="font-size:12px;font-weight:500;color:#888;">Title</th>
+                                <th style="font-size:12px;font-weight:500;color:#888;">Category</th>
+                                <th style="font-size:12px;font-weight:500;color:#888;">Date</th>
+                                <th style="font-size:12px;font-weight:500;color:#888;">Description</th>
+                                <th style="font-size:12px;font-weight:500;color:#888;text-align:right;">Amount</th>
+                                <th style="font-size:12px;font-weight:500;color:#888;text-align:center;">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="expenses-table-body">
+                            <tr><td colspan="6" class="text-center text-muted py-4">Loading...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <!-- Pagination -->
+                <div class="d-flex justify-content-between align-items-center p-3">
+                    <span class="small text-muted" id="pagination-info"></span>
+                    <div class="d-flex gap-2">
+                        <button class="btn btn-outline-secondary btn-sm" id="prev-btn" onclick="changePage(-1)" disabled>Previous</button>
+                        <button class="btn btn-outline-secondary btn-sm" id="next-btn" onclick="changePage(1)" disabled>Next</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Add/Edit Expense Modal -->
+<div class="modal fade" id="expenseModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title fw-semibold" id="modal-title">Add Expense</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div id="modal-error" class="alert alert-danger d-none"></div>
+                <input type="hidden" id="expense-id">
+                <div class="mb-3">
+                    <label class="form-label small text-muted">Title</label>
+                    <input type="text" id="exp-title" class="form-control" placeholder="e.g. Lunch at office">
+                </div>
+                <div class="row g-2">
+                    <div class="col-md-6">
+                        <label class="form-label small text-muted">Amount (₹)</label>
+                        <input type="number" id="exp-amount" class="form-control" placeholder="0.00">
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label small text-muted">Date</label>
+                        <input type="date" id="exp-date" class="form-control">
+                    </div>
+                </div>
+                <div class="mb-3 mt-2">
+                    <label class="form-label small text-muted">Category</label>
+                    <select class="form-select" id="exp-category">
+                        <option value="food">Food</option>
+                        <option value="transport">Transport</option>
+                        <option value="shopping">Shopping</option>
+                        <option value="entertainment">Entertainment</option>
+                        <option value="health">Health</option>
+                        <option value="education">Education</option>
+                        <option value="bills">Bills</option>
+                        <option value="other">Other</option>
+                    </select>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label small text-muted">Description (optional)</label>
+                    <textarea id="exp-description" class="form-control" rows="2" placeholder="Add a note..."></textarea>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary btn-sm" onclick="saveExpense()">
+                    <span id="save-btn-text">Save</span>
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Delete Confirmation Modal -->
+<div class="modal fade" id="deleteModal" tabindex="-1">
+    <div class="modal-dialog modal-sm">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title fw-semibold">Delete Expense</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p class="small">Are you sure you want to delete this expense?</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-danger btn-sm" onclick="confirmDelete()">Delete</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    if (!getToken()) window.location.href = '/login/';
+
+    let currentPage = 1;
+    let totalPages = 1;
+    let deleteId = null;
+    const expenseModal = new bootstrap.Modal(document.getElementById('expenseModal'));
+    const deleteModal = new bootstrap.Modal(document.getElementById('deleteModal'));
+
+    // Set current month and year
+    const now = new Date();
+    document.getElementById('filter-month').value = now.getMonth() + 1;
+    document.getElementById('filter-year').value = now.getFullYear();
+
+    async function apiFetch(url, options = {}) {
+        const response = await fetch(url, {
+            ...options,
+            headers: {
+                'Authorization': `Bearer ${getToken()}`,
+                'Content-Type': 'application/json',
+                ...options.headers
+            }
+        });
+        if (response.status === 401) { logout(); return null; }
+        return response;
+    }
+
+    async function loadExpenses() {
+        const search = document.getElementById('search').value;
+        const category = document.getElementById('filter-category').value;
+        const month = document.getElementById('filter-month').value;
+        const year = document.getElementById('filter-year').value;
+        const ordering = document.getElementById('filter-ordering').value;
+
+        let url = `${API_BASE}/expenses/?page=${currentPage}&ordering=${ordering}`;
+        if (search) url += `&search=${search}`;
+        if (category) url += `&category=${category}`;
+        if (month) url += `&month=${month}`;
+        if (year) url += `&year=${year}`;
+
+        const response = await apiFetch(url);
+        if (!response) return;
+        const data = await response.json();
+
+        renderExpenses(data.results || []);
+
+        // Pagination
+        const count = data.count || 0;
+        totalPages = Math.ceil(count / 10);
+        document.getElementById('pagination-info').textContent = `Showing ${data.results?.length || 0} of ${count} expenses`;
+        document.getElementById('prev-btn').disabled = !data.previous;
+        document.getElementById('next-btn').disabled = !data.next;
+    }
+
+    function renderExpenses(expenses) {
+        const tbody = document.getElementById('expenses-table-body');
+        if (expenses.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted py-4">No expenses found</td></tr>';
+            return;
+        }
+
+        const badgeColors = {
+            food: 'badge-food', transport: 'badge-transport', shopping: 'badge-shopping',
+            bills: 'badge-bills', health: 'badge-health', entertainment: 'badge-entertainment',
+            education: 'badge-education', other: 'badge-other'
+        };
+
+        tbody.innerHTML = expenses.map(exp => `
+            <tr>
+                <td style="font-size:13px;">${exp.title}</td>
+                <td><span class="badge ${badgeColors[exp.category] || 'badge-other'}" style="font-size:11px;">${exp.category}</span></td>
+                <td style="font-size:13px;color:#888;">${exp.date}</td>
+                <td style="font-size:13px;color:#888;">${exp.description || '-'}</td>
+                <td style="font-size:13px;font-weight:500;text-align:right;">₹${parseFloat(exp.amount).toLocaleString('en-IN')}</td>
+                <td style="text-align:center;">
+                    <button class="btn btn-sm text-success p-0 me-2" onclick="openEditModal(${JSON.stringify(exp).replace(/"/g, '&quot;')})">
+                        <i class="bi bi-pencil"></i>
+                    </button>
+                    <button class="btn btn-sm text-danger p-0" onclick="openDeleteModal(${exp.id})">
+                        <i class="bi bi-trash"></i>
+                    </button>
+                </td>
+            </tr>
+        `).join('');
+    }
+
+    function changePage(direction) {
+        currentPage += direction;
+        loadExpenses();
+    }
+
+    function openAddModal() {
+        document.getElementById('modal-title').textContent = 'Add Expense';
+        document.getElementById('expense-id').value = '';
+        document.getElementById('exp-title').value = '';
+        document.getElementById('exp-amount').value = '';
+        document.getElementById('exp-date').value = new Date().toISOString().split('T')[0];
+        document.getElementById('exp-category').value = 'food';
+        document.getElementById('exp-description').value = '';
+        document.getElementById('modal-error').classList.add('d-none');
+        document.getElementById('save-btn-text').textContent = 'Save';
+        expenseModal.show();
+    }
+
+    function openEditModal(exp) {
+        document.getElementById('modal-title').textContent = 'Edit Expense';
+        document.getElementById('expense-id').value = exp.id;
+        document.getElementById('exp-title').value = exp.title;
+        document.getElementById('exp-amount').value = exp.amount;
+        document.getElementById('exp-date').value = exp.date;
+        document.getElementById('exp-category').value = exp.category;
+        document.getElementById('exp-description').value = exp.description || '';
+        document.getElementById('modal-error').classList.add('d-none');
+        document.getElementById('save-btn-text').textContent = 'Update';
+        expenseModal.show();
+    }
+
+    async function saveExpense() {
+        const id = document.getElementById('expense-id').value;
+        const title = document.getElementById('exp-title').value;
+        const amount = document.getElementById('exp-amount').value;
+        const date = document.getElementById('exp-date').value;
+        const category = document.getElementById('exp-category').value;
+        const description = document.getElementById('exp-description').value;
+        const errorDiv = document.getElementById('modal-error');
+
+        if (!title || !amount || !date) {
+            errorDiv.textContent = 'Please fill in all required fields';
+            errorDiv.classList.remove('d-none');
+            return;
+        }
+
+        const body = JSON.stringify({ title, amount, date, category, description });
+        const url = id ? `${API_BASE}/expenses/${id}/` : `${API_BASE}/expenses/`;
+        const method = id ? 'PATCH' : 'POST';
+
+        document.getElementById('save-btn-text').textContent = 'Saving...';
+
+        const response = await apiFetch(url, { method, body });
+        if (!response) return;
+
+        if (response.ok) {
+            expenseModal.hide();
+            loadExpenses();
+        } else {
+            const data = await response.json();
+            errorDiv.textContent = Object.values(data).flat().join(' ');
+            errorDiv.classList.remove('d-none');
+            document.getElementById('save-btn-text').textContent = id ? 'Update' : 'Save';
+        }
+    }
+
+    function openDeleteModal(id) {
+        deleteId = id;
+        deleteModal.show();
+    }
+
+    async function confirmDelete() {
+        const response = await apiFetch(`${API_BASE}/expenses/${deleteId}/`, { method: 'DELETE' });
+        if (response && (response.ok || response.status === 204)) {
+            deleteModal.hide();
+            loadExpenses();
+        }
+    }
+
+    async function exportCSV() {
+        const category = document.getElementById('filter-category').value;
+        const month = document.getElementById('filter-month').value;
+        const year = document.getElementById('filter-year').value;
+
+        let url = `${API_BASE}/expenses/export/?`;
+        if (category) url += `&category=${category}`;
+        if (month) url += `&month=${month}`;
+        if (year) url += `&year=${year}`;
+
+        const response = await fetch(url, {
+            headers: { 'Authorization': `Bearer ${getToken()}` }
+        });
+
+        const blob = await response.blob();
+        const link = document.createElement('a');
+        link.href = URL.createObjectURL(blob);
+        link.download = 'expenses.csv';
+        link.click();
+    }
+
+    // Search on enter
+    document.getElementById('search').addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') { currentPage = 1; loadExpenses(); }
+    });
+
+    loadExpenses();
+</script>
+{% endblock %}

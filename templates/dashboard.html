@@ -1,0 +1,277 @@
+{% extends 'base.html' %}
+
+{% block title %}Dashboard - Spendwise{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <!-- Sidebar -->
+        <div class="col-md-2 sidebar">
+            <ul class="nav flex-column">
+                <li class="nav-item">
+                    <a class="nav-link active" href="/dashboard/">
+                        <i class="bi bi-grid"></i> Dashboard
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="/expenses/">
+                        <i class="bi bi-receipt"></i> Expenses
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="/advisor/">
+                        <i class="bi bi-robot"></i> AI Advisor
+                    </a>
+                </li>
+            </ul>
+        </div>
+
+        <!-- Main Content -->
+        <div class="col-md-10 main-content">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <div>
+                    <h5 class="fw-semibold mb-0">Dashboard</h5>
+                    <p class="text-muted small mb-0" id="greeting"></p>
+                </div>
+                <div class="d-flex gap-2">
+                    <select class="form-select form-select-sm" id="month-select" style="width:120px;">
+                        <option value="1">January</option>
+                        <option value="2">February</option>
+                        <option value="3">March</option>
+                        <option value="4">April</option>
+                        <option value="5">May</option>
+                        <option value="6">June</option>
+                        <option value="7">July</option>
+                        <option value="8">August</option>
+                        <option value="9">September</option>
+                        <option value="10">October</option>
+                        <option value="11">November</option>
+                        <option value="12">December</option>
+                    </select>
+                    <select class="form-select form-select-sm" id="year-select" style="width:100px;">
+                        <option value="2024">2024</option>
+                        <option value="2025">2025</option>
+                        <option value="2026">2026</option>
+                    </select>
+                    <button class="btn btn-primary btn-sm" onclick="loadDashboard()">Filter</button>
+                </div>
+            </div>
+
+            <!-- Metric Cards -->
+            <div class="row g-3 mb-4">
+                <div class="col-md-3">
+                    <div class="metric-card">
+                        <div class="metric-label">Total Spent</div>
+                        <div class="metric-value" id="total-spent">₹0</div>
+                        <div class="small text-muted mt-1">This month</div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="metric-card">
+                        <div class="metric-label">Biggest Category</div>
+                        <div class="metric-value" id="biggest-category">-</div>
+                        <div class="small text-muted mt-1" id="biggest-amount">₹0</div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="metric-card">
+                        <div class="metric-label">Total Expenses</div>
+                        <div class="metric-value" id="total-expenses">0</div>
+                        <div class="small text-muted mt-1">Transactions</div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="metric-card">
+                        <div class="metric-label">Daily Average</div>
+                        <div class="metric-value" id="daily-average">₹0</div>
+                        <div class="small text-muted mt-1">Per day</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="row g-3">
+                <!-- Category Chart -->
+                <div class="col-md-6">
+                    <div class="card p-3">
+                        <h6 class="fw-semibold mb-3">Spending by Category</h6>
+                        <div id="category-chart"></div>
+                    </div>
+                </div>
+
+                <!-- Recent Expenses -->
+                <div class="col-md-6">
+                    <div class="card p-3">
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <h6 class="fw-semibold mb-0">Recent Expenses</h6>
+                            <a href="/expenses/" class="text-success small">View all</a>
+                        </div>
+                        <div id="recent-expenses"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Budget Status -->
+            <div class="row g-3 mt-1">
+                <div class="col-12">
+                    <div class="card p-3">
+                        <h6 class="fw-semibold mb-3">Budget Status</h6>
+                        <div id="budget-status"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Redirect if not logged in
+    if (!getToken()) window.location.href = '/login/';
+
+    const now = new Date();
+    document.getElementById('month-select').value = now.getMonth() + 1;
+    document.getElementById('year-select').value = now.getFullYear();
+
+    const user = JSON.parse(localStorage.getItem('user') || '{}');
+    document.getElementById('greeting').textContent = `Welcome back, ${user.username || 'User'}!`;
+
+    async function apiFetch(url) {
+        const response = await fetch(url, {
+            headers: { 'Authorization': `Bearer ${getToken()}` }
+        });
+        if (response.status === 401) {
+            logout();
+            return null;
+        }
+        return response.json();
+    }
+
+    async function loadDashboard() {
+        const month = document.getElementById('month-select').value;
+        const year = document.getElementById('year-select').value;
+
+        // Load summary
+        const summary = await apiFetch(`${API_BASE}/expenses/summary/?month=${month}&year=${year}`);
+        if (!summary) return;
+
+        document.getElementById('total-spent').textContent = `₹${summary.total.toLocaleString('en-IN')}`;
+
+        // Biggest category
+        const categories = summary.category_summary;
+        if (Object.keys(categories).length > 0) {
+            const biggest = Object.entries(categories).sort((a, b) => b[1] - a[1])[0];
+            document.getElementById('biggest-category').textContent = biggest[0].charAt(0).toUpperCase() + biggest[0].slice(1);
+            document.getElementById('biggest-amount').textContent = `₹${biggest[1].toLocaleString('en-IN')}`;
+        }
+
+        // Category chart
+        renderCategoryChart(categories, summary.total);
+
+        // Load expenses for count and daily average
+        const expenses = await apiFetch(`${API_BASE}/expenses/?month=${month}&year=${year}&page_size=100`);
+        if (expenses) {
+            document.getElementById('total-expenses').textContent = expenses.count || 0;
+            const daysInMonth = new Date(year, month, 0).getDate();
+            const avg = summary.total / daysInMonth;
+            document.getElementById('daily-average').textContent = `₹${avg.toFixed(0)}`;
+
+            // Recent expenses (first 5)
+            renderRecentExpenses(expenses.results ? expenses.results.slice(0, 5) : []);
+        }
+
+        // Load budget status
+        const budgets = await apiFetch(`${API_BASE}/budgets/status/?month=${month}&year=${year}`);
+        if (budgets) renderBudgetStatus(budgets.budgets);
+    }
+
+    function renderCategoryChart(categories, total) {
+        const colors = {
+            food: '#1D9E75', transport: '#378ADD', shopping: '#EF9F27',
+            bills: '#E24B4A', health: '#D4537E', entertainment: '#7F77DD',
+            education: '#5DCAA5', other: '#888780'
+        };
+
+        if (Object.keys(categories).length === 0) {
+            document.getElementById('category-chart').innerHTML = '<p class="text-muted small text-center">No expenses this month</p>';
+            return;
+        }
+
+        let html = '';
+        Object.entries(categories).sort((a, b) => b[1] - a[1]).forEach(([cat, amt]) => {
+            const pct = total > 0 ? (amt / total * 100).toFixed(1) : 0;
+            const color = colors[cat] || '#888780';
+            html += `
+                <div class="d-flex align-items-center gap-2 mb-2">
+                    <span style="width:80px;font-size:13px;color:#555;">${cat.charAt(0).toUpperCase() + cat.slice(1)}</span>
+                    <div style="flex:1;height:8px;background:#f0f0f0;border-radius:4px;overflow:hidden;">
+                        <div style="width:${pct}%;height:100%;background:${color};border-radius:4px;"></div>
+                    </div>
+                    <span style="font-size:13px;color:#555;width:70px;text-align:right;">₹${amt.toLocaleString('en-IN')}</span>
+                </div>`;
+        });
+        document.getElementById('category-chart').innerHTML = html;
+    }
+
+    function renderRecentExpenses(expenses) {
+        if (expenses.length === 0) {
+            document.getElementById('recent-expenses').innerHTML = '<p class="text-muted small text-center">No expenses this month</p>';
+            return;
+        }
+
+        const icons = {
+            food: '🍱', transport: '🚌', shopping: '🛍', bills: '💡',
+            health: '💊', entertainment: '🎬', education: '📚', other: '📌'
+        };
+
+        let html = '';
+        expenses.forEach(exp => {
+            html += `
+                <div class="d-flex justify-content-between align-items-center py-2 border-bottom">
+                    <div class="d-flex align-items-center gap-2">
+                        <span style="font-size:20px;">${icons[exp.category] || '📌'}</span>
+                        <div>
+                            <div style="font-size:13px;font-weight:500;">${exp.title}</div>
+                            <div style="font-size:11px;color:#888;">${exp.date}</div>
+                        </div>
+                    </div>
+                    <div style="font-size:13px;font-weight:500;">₹${parseFloat(exp.amount).toLocaleString('en-IN')}</div>
+                </div>`;
+        });
+        document.getElementById('recent-expenses').innerHTML = html;
+    }
+
+    function renderBudgetStatus(budgets) {
+        if (!budgets || budgets.length === 0) {
+            document.getElementById('budget-status').innerHTML = '<p class="text-muted small">No budgets set for this month. <a href="/expenses/" class="text-success">Set a budget</a></p>';
+            return;
+        }
+
+        let html = '<div class="row g-3">';
+        budgets.forEach(b => {
+            const color = b.exceeded ? '#E24B4A' : '#1D9E75';
+            const pct = Math.min(b.percentage_used, 100);
+            html += `
+                <div class="col-md-4">
+                    <div class="p-3 rounded" style="background:#f8f9fa;">
+                        <div class="d-flex justify-content-between mb-1">
+                            <span style="font-size:13px;font-weight:500;">${b.category.charAt(0).toUpperCase() + b.category.slice(1)}</span>
+                            <span style="font-size:12px;color:${color};">${b.exceeded ? 'Exceeded!' : `${b.percentage_used}%`}</span>
+                        </div>
+                        <div style="height:6px;background:#e9ecef;border-radius:4px;overflow:hidden;">
+                            <div style="width:${pct}%;height:100%;background:${color};border-radius:4px;"></div>
+                        </div>
+                        <div class="d-flex justify-content-between mt-1">
+                            <span style="font-size:11px;color:#888;">Spent: ₹${b.spent.toLocaleString('en-IN')}</span>
+                            <span style="font-size:11px;color:#888;">Budget: ₹${b.budget.toLocaleString('en-IN')}</span>
+                        </div>
+                    </div>
+                </div>`;
+        });
+        html += '</div>';
+        document.getElementById('budget-status').innerHTML = html;
+    }
+
+    loadDashboard();
+</script>
+{% endblock %}
